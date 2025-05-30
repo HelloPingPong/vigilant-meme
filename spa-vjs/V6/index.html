@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Generator (Spring + JS)</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- NO FAKER.JS CDN NEEDED -->
+  <script src="script.js" defer></script>
+</head>
+<body>
+<header class="app-header">
+  <h1>Test Data Generator (Spring Boot + Vanilla JS)</h1>
+  <button id="darkModeToggle" title="Toggle Dark Mode">🌓</button>
+</header>
+
+<main class="app-main">
+  <section class="schema-section">
+    <h2>Schema Definition</h2>
+    <div id="schemaFieldsContainer">
+      <!-- Schema field rows added by JS -->
+    </div>
+    <button id="addFieldBtn" class="add-field-btn">+ Add Field</button>
+
+    <div class="schema-management">
+      <h3>Manage Schemas (Saved in Backend)</h3>
+      <label for="schemaName">Schema Name:</label>
+      <input type="text" id="schemaName" placeholder="Schema Name (for saving)">
+      <button id="saveSchemaBtn">Save Schema</button>
+      <label for="loadSchemaSelect">Schema:</label>
+      <select id="loadSchemaSelect">
+        <option value="">-- Load Saved Schema --</option>
+      </select>
+      <button id="loadSchemaBtn">Load</button>
+      <button id="deleteSchemaBtn">Delete</button>
+      <p id="shareLinkDisplay" class="share-info" style="display: none;">
+        Shareable Frontend Link (Copy URL): <a href="#" id="shareLinkAnchor" target="_blank"></a><br>
+        API Link: <span id="apiLinkSpan"></span>
+      </p>
+    </div>
+  </section>
+
+  <section class="generation-section">
+    <h2>Generate Data</h2>
+    <div class="generation-controls">
+      <label for="rowCount">Rows:</label>
+      <input type="number" id="rowCount" value="100" min="1" max="100000"> <!-- Higher limit ok with backend -->
+
+      <label for="formatSelect">Format:</label>
+      <select id="formatSelect">
+        <option value="CSV">CSV</option>
+        <option value="JSON">JSON</option>
+        <option value="SQL">SQL</option>
+        <option value="XML">XML</option>
+        <option value="PLAINTEXT">PlainText</option>
+      </select>
+
+      <div id="sqlOptions" class="hidden">
+        <label for="sqlTableName">Table Name:</label>
+        <input type="text" id="sqlTableName" value="my_table">
+      </div>
+
+      <button id="generateBtn" class="generate-btn">Generate & Download</button>
+    </div>
+
+    <div id="loadingIndicator" class="hidden">Contacting Backend...</div>
+    <div id="errorDisplay" class="error-message hidden"></div>
+
+    <h2>Preview (First 10 Rows from Backend)</h2>
+    <div id="previewArea" class="preview-table-container">
+      <table id="previewTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <p id="previewPlaceholder">Define schema to see preview.</p>
+      <div id="previewLoadingIndicator" class="hidden">Loading Preview...</div>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <p>Backend: Spring Boot | Frontend: Vanilla JS</p>
+</footer>
+
+<!-- Template for schema field rows -->
+<template id="schemaFieldTemplate">
+  <div class="schema-field-row">
+    <input type="text" name="fieldName" placeholder="Field Name" class="field-input field-name">
+    <select name="dataType" class="field-input field-type">
+      <option value="">-- Loading Types... --</option>
+    </select>
+    <input type="text" name="fieldOptions" placeholder="Options (optional)" class="field-input field-options" title="e.g., date format, regex, JSON for min/max">
+    <button class="remove-field-btn" title="Remove Field">×</button>
+  </div>
+</template>
+
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Generator (Spring + JS)</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+<header class="app-header">
+  <h1>Test Data Generator (Spring Boot + Vanilla JS)</h1>
+  <button id="darkModeToggle" title="Toggle Dark Mode">🌓</button>
+</header>
+
+<main class="app-main">
+  <section class="schema-section">
+    <h2>Schema Definition</h2>
+
+    <!-- Schema Field Definitions -->
+    <div id="schemaFieldsContainer">
+      <!-- Schema field rows added by JS -->
+    </div>
+    <button id="addFieldBtn" class="add-field-btn">+ Add Field</button>
+
+    <!-- Schema-Level Formatting Rules -->
+    <div class="schema-formatting-section">
+      <h3>Schema-Level Formatting Rules</h3>
+      <button id="toggleFormattingRules" class="toggle-btn">⚙️ Configure Schema Formatting</button>
+      <div id="schemaFormattingPanel" class="formatting-panel hidden">
+
+        <!-- Global Rules -->
+        <div class="formatting-section">
+          <h4>Global Rules (Applied to All Fields)</h4>
+          <div class="rule-grid">
+            <div class="rule-group">
+              <label for="globalCase">Default Case:</label>
+              <select id="globalCase">
+                <option value="">No Change</option>
+                <option value="UPPER">UPPERCASE</option>
+                <option value="LOWER">lowercase</option>
+                <option value="TITLE">Title Case</option>
+                <option value="CAMEL">camelCase</option>
+              </select>
+            </div>
+
+            <div class="rule-group">
+              <label for="globalPrefix">Global Prefix:</label>
+              <input type="text" id="globalPrefix" placeholder="e.g., TEST_">
+            </div>
+
+            <div class="rule-group">
+              <label for="globalSuffix">Global Suffix:</label>
+              <input type="text" id="globalSuffix" placeholder="e.g., _2024">
+            </div>
+
+            <div class="rule-group">
+              <label for="globalMaxLength">Max Length (All Fields):</label>
+              <input type="number" id="globalMaxLength" placeholder="e.g., 50" min="1">
+            </div>
+
+            <div class="rule-group">
+              <label for="globalDateFormat">Date Format:</label>
+              <input type="text" id="globalDateFormat" placeholder="e.g., yyyy-MM-dd">
+            </div>
+
+            <div class="rule-group">
+              <label for="globalNumberFormat">Number Format:</label>
+              <input type="text" id="globalNumberFormat" placeholder="e.g., #,##0.00">
+            </div>
+          </div>
+        </div>
+
+        <!-- Category Rules -->
+        <div class="formatting-section">
+          <h4>Category-Specific Rules</h4>
+          <div id="categoryRulesContainer">
+            <!-- Dynamic category rules will be added here -->
+          </div>
+          <button id="addCategoryRuleBtn" class="add-rule-btn">+ Add Category Rule</button>
+        </div>
+
+        <!-- Conditional Rules -->
+        <div class="formatting-section">
+          <h4>Conditional Rules</h4>
+          <div id="conditionalRulesContainer">
+            <!-- Dynamic conditional rules will be added here -->
+          </div>
+          <button id="addConditionalRuleBtn" class="add-rule-btn">+ Add Conditional Rule</button>
+        </div>
+
+        <div class="formatting-actions">
+          <button id="previewSchemaFormatting" class="preview-btn">🔍 Preview Changes</button>
+          <button id="resetSchemaFormatting" class="reset-btn">↺ Reset All Rules</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schema Management -->
+    <div class="schema-management">
+      <h3>Manage Schemas (Saved in Backend)</h3>
+      <label for="schemaName">Schema Name:</label>
+      <input type="text" id="schemaName" placeholder="Schema Name (for saving)">
+      <button id="saveSchemaBtn">Save Schema</button>
+      <label for="loadSchemaSelect">Schema:</label>
+      <select id="loadSchemaSelect">
+        <option value="">-- Load Saved Schema --</option>
+      </select>
+      <button id="loadSchemaBtn">Load</button>
+      <button id="deleteSchemaBtn">Delete</button>
+      <p id="shareLinkDisplay" class="share-info" style="display: none;">
+        Shareable Frontend Link (Copy URL): <a href="#" id="shareLinkAnchor" target="_blank"></a><br>
+        API Link: <span id="apiLinkSpan"></span>
+      </p>
+    </div>
+  </section>
+
+  <section class="generation-section">
+    <h2>Generate Data</h2>
+    <div class="generation-controls">
+      <label for="rowCount">Rows:</label>
+      <input type="number" id="rowCount" value="100" min="1" max="100000">
+
+      <label for="formatSelect">Format:</label>
+      <select id="formatSelect">
+        <option value="CSV">CSV</option>
+        <option value="JSON">JSON</option>
+        <option value="SQL">SQL</option>
+        <option value="XML">XML</option>
+        <option value="PLAINTEXT">PlainText</option>
+      </select>
+
+      <div id="sqlOptions" class="hidden">
+        <label for="sqlTableName">Table Name:</label>
+        <input type="text" id="sqlTableName" value="my_table">
+      </div>
+
+      <button id="generateBtn" class="generate-btn">Generate & Download</button>
+    </div>
+
+    <div id="loadingIndicator" class="hidden">Contacting Backend...</div>
+    <div id="errorDisplay" class="error-message hidden"></div>
+
+    <h2>Preview (First 10 Rows from Backend)</h2>
+    <div id="previewArea" class="preview-table-container">
+      <table id="previewTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <p id="previewPlaceholder">Define schema to see preview.</p>
+      <div id="previewLoadingIndicator" class="hidden">Loading Preview...</div>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <p>Backend: Spring Boot | Frontend: Vanilla JS</p>
+</footer>
+
+<!-- Template for schema field rows with enhanced options -->
+<template id="schemaFieldTemplate">
+  <div class="schema-field-row">
+    <input type="text" name="fieldName" placeholder="Field Name" class="field-input field-name">
+    <select name="dataType" class="field-input field-type">
+      <option value="">-- Loading Types... --</option>
+    </select>
+    <input type="text" name="fieldOptions" placeholder="Basic Options" class="field-input field-options" title="Basic generator options">
+    <button class="advanced-options-btn" title="Advanced Field Formatting">⚙️</button>
+    <button class="remove-field-btn" title="Remove Field">×</button>
+  </div>
+</template>
+
+<!-- Advanced Field Options Modal -->
+<div id="advancedOptionsModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Advanced Field Options</h3>
+      <button class="modal-close">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="options-tabs">
+        <button class="tab-btn active" data-tab="basic">Basic</button>
+        <button class="tab-btn" data-tab="formatting">Formatting</button>
+        <button class="tab-btn" data-tab="dependencies">Dependencies</button>
+      </div>
+
+      <div id="basic-tab" class="tab-content active">
+        <div class="form-group">
+          <label for="modalBasicOptions">Generator Options:</label>
+          <input type="text" id="modalBasicOptions" placeholder="e.g., 10-50 for range, [A-Z]{3} for regex">
+          <small>Specific options for the selected data type generator</small>
+        </div>
+      </div>
+
+      <div id="formatting-tab" class="tab-content">
+        <div class="form-group">
+          <label for="fieldCase">Case Transform:</label>
+          <select id="fieldCase">
+            <option value="">No Change</option>
+            <option value="UPPER">UPPERCASE</option>
+            <option value="LOWER">lowercase</option>
+            <option value="TITLE">Title Case</option>
+            <option value="CAMEL">camelCase</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fieldPrefix">Prefix:</label>
+          <input type="text" id="fieldPrefix" placeholder="Text to add before value">
+        </div>
+
+        <div class="form-group">
+          <label for="fieldSuffix">Suffix:</label>
+          <input type="text" id="fieldSuffix" placeholder="Text to add after value">
+        </div>
+
+        <div class="form-group">
+          <label>Fixed Length:</label>
+          <div class="inline-group">
+            <input type="number" id="fixedLength" placeholder="Length" min="1">
+            <select id="paddingPosition">
+              <option value="RIGHT">Pad Right</option>
+              <option value="LEFT">Pad Left</option>
+            </select>
+            <input type="text" id="paddingChar" placeholder="Pad char" maxlength="1" value=" ">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="truncateFrom">If Too Long:</label>
+          <select id="truncateFrom">
+            <option value="END">Truncate from End</option>
+            <option value="START">Truncate from Start</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="dependencies-tab" class="tab-content">
+        <div class="form-group">
+          <label for="dependencyExpression">Expression:</label>
+          <textarea id="dependencyExpression" rows="3"
+              placeholder="${firstName}_${lastName}_${randomNumber(1000,9999)}"></textarea>
+          <small>Use ${fieldName} to reference other fields. Available functions: randomNumber(min,max), substring(field,start,end)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="dependsOn">Depends On Fields:</label>
+          <input type="text" id="dependsOn" placeholder="firstName,lastName (comma separated)">
+          <small>List fields this field depends on (for ordering)</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="applyAdvancedOptions" class="apply-btn">Apply</button>
+      <button id="cancelAdvancedOptions" class="cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Rule Template -->
+<template id="categoryRuleTemplate">
+  <div class="category-rule">
+    <div class="rule-header">
+      <select class="category-select">
+        <option value="Name">Name</option>
+        <option value="Address">Address</option>
+        <option value="Internet">Internet</option>
+        <option value="Number">Number</option>
+        <option value="Date">Date</option>
+        <option value="Boolean">Boolean</option>
+        <option value="String">String</option>
+        <option value="Custom">Custom</option>
+      </select>
+      <button class="remove-rule-btn">×</button>
+    </div>
+    <div class="rule-options">
+      <input type="text" class="category-prefix" placeholder="Prefix">
+      <input type="text" class="category-suffix" placeholder="Suffix">
+      <select class="category-case">
+        <option value="">No Change</option>
+        <option value="UPPER">UPPER</option>
+        <option value="LOWER">lower</option>
+        <option value="TITLE">Title</option>
+      </select>
+      <label>
+        <input type="checkbox" class="category-override"> Override field rules
+      </label>
+    </div>
+  </div>
+</template>
+
+<!-- Conditional Rule Template -->
+<template id="conditionalRuleTemplate">
+  <div class="conditional-rule">
+    <div class="rule-header">
+      <input type="text" class="condition-expression" placeholder="e.g., fieldName.contains('email')">
+      <input type="number" class="condition-priority" placeholder="Priority" value="0">
+      <button class="remove-rule-btn">×</button>
+    </div>
+    <div class="rule-options">
+      <input type="text" class="conditional-prefix" placeholder="Prefix">
+      <input type="text" class="conditional-suffix" placeholder="Suffix">
+      <select class="conditional-case">
+        <option value="">No Change</option>
+        <option value="UPPER">UPPER</option>
+        <option value="LOWER">lower</option>
+        <option value="TITLE">Title</option>
+      </select>
+    </div>
+  </div>
+</template>
+
+</body>
+</html>
