@@ -1,0 +1,6 @@
+package com.jpmorgan.reactdemo.expression.functions;
+
+import java.util.List;
+
+public class SubstringFunction {
+}

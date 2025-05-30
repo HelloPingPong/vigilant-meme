@@ -1,0 +1,89 @@
+package com.jpmorgan.reactdemo.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.jpmorgan.reactdemo.dto.EnhancedFieldOptions;
+import com.jpmorgan.reactdemo.dto.FieldDefinitionDto;
+import com.jpmorgan.reactdemo.dto.GenerationRequest;
+import com.jpmorgan.reactdemo.formatting.FieldFormatter;
+import com.jpmorgan.reactdemo.formatting.FieldFormattingOptions;
+import com.jpmorgan.reactdemo.formatting.schema.SchemaFormattingRules;
+import com.jpmorgan.reactdemo.generator.DataTypeGenerator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+@Service
+public class EnhancedDataGenerationService extends DataGenerationService {
+
+    @Autowired
+    private SchemaFormattingService schemaFormattingService;
+
+    @Autowired
+    private FieldFormatter fieldFormatter;
+
+    public EnhancedDataGenerationService(final List<DataTypeGenerator> generators, final ObjectMapper objectMapper,
+            final CsvMapper csvMapper, final XmlMapper xmlMapper) {
+        super(generators, objectMapper, csvMapper, xmlMapper);
+    }
+
+    // Override to include schema-level formatting
+    public String generateData(GenerationRequest request) throws Exception {
+        // Parse schema-level formatting rules if provided
+        SchemaFormattingRules schemaRules = parseSchemaRules(request.getSchemaFormattingRules());
+
+        List<Map<String, Object>> data = generateRawDataWithSchemaFormatting(
+                request.getSchema(),
+                request.getRowCount(),
+                schemaRules
+        );
+
+        return formatData(data, request.getFormat(), request.getSchema(), request.getTableName());
+    }
+
+    private List<Map<String, Object>> generateRawDataWithSchemaFormatting(
+            List<FieldDefinitionDto> schema,
+            int rowCount,
+            SchemaFormattingRules schemaRules) {
+
+        return IntStream.range(0, rowCount)
+                .mapToObj(i -> generateRowWithSchemaFormatting(schema, schemaRules))
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, Object> generateRowWithSchemaFormatting(
+            List<FieldDefinitionDto> schema,
+            SchemaFormattingRules schemaRules) {
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        List<FieldDefinitionDto> orderedFields = resolveDependencyOrder(schema);
+
+        for (FieldDefinitionDto field : orderedFields) {
+            try {
+                // Parse field-level options
+                EnhancedFieldOptions fieldOptions = parseEnhancedOptions(field.getOptions());
+
+                // Resolve final formatting rules (schema + field level)
+                FieldFormattingOptions finalFormatting = schemaFormattingService.resolveFieldFormatting(
+                        field, schemaRules, fieldOptions.getFormatting()
+                );
+
+                // Generate and format value
+                String value = generateAndFormatFieldValue(field, row, fieldOptions, finalFormatting);
+                row.put(field.getName(), value);
+
+            } catch (Exception e) {
+                log.error("Error generating field '{}': {}", field.getName(), e.getMessage());
+                row.put(field.getName(), "[ERROR]");
+            }
+        }
+
+        return row;
+    }
+}
