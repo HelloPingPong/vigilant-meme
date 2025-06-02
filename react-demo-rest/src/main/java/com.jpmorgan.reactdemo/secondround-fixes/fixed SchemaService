@@ -1,0 +1,133 @@
+package com.jpmorgan.reactdemo.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jpmorgan.reactdemo.dto.FieldDefinitionDto;
+import com.jpmorgan.reactdemo.dto.SchemaDefinitionDto;
+import com.jpmorgan.reactdemo.dto.SchemaSummaryDto;
+import com.jpmorgan.reactdemo.formatting.schema.SchemaFormattingRules;
+import com.jpmorgan.reactdemo.model.FieldDefinition;
+import com.jpmorgan.reactdemo.model.SchemaDefinition;
+import com.jpmorgan.reactdemo.repository.SchemaDefinitionRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+@Service
+@RequiredArgsConstructor
+public class SchemaService {
+
+    private final SchemaDefinitionRepository schemaRepository;
+    private final ObjectMapper objectMapper;
+    private static final Logger log = LoggerFactory.getLogger(SchemaService.class);
+
+    @Transactional
+    public SchemaDefinitionDto saveSchema(SchemaDefinitionDto schemaDto) {
+        SchemaDefinition schema = new SchemaDefinition();
+        schema.setName(schemaDto.getName());
+        
+        // Convert formatting rules to JSON string
+        if (schemaDto.getFormattingRules() != null) {
+            try {
+                String rulesJson = objectMapper.writeValueAsString(schemaDto.getFormattingRules());
+                schema.setSchemaFormattingRules(rulesJson);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to serialize formatting rules: {}", e.getMessage());
+            }
+        }
+
+        // Create fields with order
+        List<FieldDefinition> fields = IntStream.range(0, schemaDto.getFields().size())
+                .mapToObj(i -> {
+                    FieldDefinitionDto fieldDto = schemaDto.getFields().get(i);
+                    FieldDefinition field = new FieldDefinition();
+                    field.setName(fieldDto.getName());
+                    field.setDataType(fieldDto.getDataType());
+                    field.setOptions(fieldDto.getOptions());
+                    field.setFieldOrder(i);
+                    return field;
+                })
+                .collect(Collectors.toList());
+
+        // Add fields using the helper method
+        fields.forEach(schema::addField);
+
+        SchemaDefinition savedSchema = schemaRepository.save(schema);
+        return convertToDto(savedSchema);
+    }
+
+    @Transactional(readOnly = true)
+    public SchemaDefinitionDto getSchema(Long id) {
+        SchemaDefinition schema = schemaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Schema not found with id: " + id));
+        return convertToDto(schema);
+    }
+
+    private SchemaDefinitionDto convertToDto(SchemaDefinition schema) {
+        SchemaDefinitionDto dto = new SchemaDefinitionDto();
+        dto.setId(schema.getId());
+        dto.setName(schema.getName());
+        
+        // Convert fields
+        dto.setFields(schema.getFields().stream()
+                .map(this::convertFieldToDto)
+                .collect(Collectors.toList()));
+        
+        // Parse formatting rules from JSON
+        if (schema.getSchemaFormattingRules() != null && !schema.getSchemaFormattingRules().trim().isEmpty()) {
+            try {
+                SchemaFormattingRules rules = objectMapper.readValue(
+                    schema.getSchemaFormattingRules(), 
+                    SchemaFormattingRules.class
+                );
+                dto.setFormattingRules(rules);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to parse formatting rules for schema {}: {}", schema.getId(), e.getMessage());
+            }
+        }
+        
+        dto.setShareLink(generateShareLink(schema.getId()));
+        return dto;
+    }
+
+    private FieldDefinitionDto convertFieldToDto(FieldDefinition field) {
+        FieldDefinitionDto dto = new FieldDefinitionDto();
+        dto.setName(field.getName());
+        dto.setDataType(field.getDataType());
+        dto.setOptions(field.getOptions());
+        return dto;
+    }
+
+    private String generateShareLink(Long schemaId) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/schemas/{id}")
+                .buildAndExpand(schemaId)
+                .toUriString();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SchemaSummaryDto> getAllSchemaSummaries() {
+        log.debug("Fetching all schema summaries");
+        return schemaRepository.findAll().stream()
+                .map(schema -> new SchemaSummaryDto(schema.getId(), schema.getName()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteSchema(Long id) {
+        log.debug("Attempting to delete schema with id: {}", id);
+        if (!schemaRepository.existsById(id)) {
+            throw new EntityNotFoundException("Schema not found with id: " + id);
+        }
+        schemaRepository.deleteById(id);
+        log.info("Successfully deleted schema with id: {}", id);
+    }
+}
