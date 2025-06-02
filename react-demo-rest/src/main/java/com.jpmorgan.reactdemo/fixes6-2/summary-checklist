@@ -1,0 +1,118 @@
+1. Architecture Overview & Documentation
+Backend Architecture (Spring Boot)
+Core Components:
+
+Data Generation Engine: Uses JavaFaker to generate test data based on field definitions
+Expression System: Supports field dependencies and dynamic expressions (e.g., ${firstName}_${lastName})
+Formatting System: Multi-level formatting rules (global, category, type-specific, conditional, field-level)
+Schema Persistence: JPA/Hibernate with H2 database for storing schema definitions
+
+Key Services:
+
+DataGenerationService: Basic data generation using registered generators
+EnhancedDataGenerationService: Extends basic service with formatting and dependency support
+SchemaService: CRUD operations for schema persistence
+ExpressionEvaluator: Evaluates expressions with functions like randomNumber(), substring(), etc.
+FieldFormatter: Applies case transforms, padding, truncation, validation
+
+Data Flow:
+
+Frontend defines schema with fields and options
+Schema can include enhanced options (formatting, dependencies)
+Backend resolves field dependencies using topological sort
+Generates data row-by-row, evaluating expressions
+Applies formatting rules in precedence order
+Exports in requested format (CSV, JSON, SQL, XML, PlainText)
+
+Frontend Architecture (Vanilla JS)
+Features:
+
+Dynamic schema builder with field management
+Advanced options modal for per-field formatting and dependencies
+Schema-level formatting rules (global, category-based, conditional)
+Real-time preview (first 10 rows)
+Schema persistence with shareable links
+Dark mode support
+
+2. Development Roadmap to Production
+Critical Missing Components:
+
+Wire up EnhancedDataGenerationService
+
+ApiController currently uses basic DataGenerationService
+Need to inject and use EnhancedDataGenerationService instead
+
+
+Complete Empty Classes
+
+PaddingConfig.java - needs fields: Character character, PaddingPosition position
+ValidationRule.java - needs fields: Integer minLength, Integer maxLength, String pattern, List<String> customRules
+CaseTransform.java enum - needs values: UPPER, LOWER, TITLE, CAMEL, PASCAL, SNAKE, KEBAB
+PaddingPosition.java enum - needs values: LEFT, RIGHT
+TruncatePosition.java enum - needs value: START
+
+
+Fix Schema Formatting
+
+SchemaFormattingRules.java has syntax error in constructor (invalid List initialization)
+SchemaFormattingService.java references undefined TypeFormattingRule class
+Missing methods: extractCategory(), mergeFormatting(), applyConditionalRules()
+
+
+Fix Generator Issues
+
+DataTypeGenerator interface has conflicting generate() methods
+Need to standardize on the 3-parameter version with rowContext
+Update all generator implementations to use consistent method signature
+
+
+Complete Expression Functions
+
+Several functions have method signature mismatches with interface
+DependentFieldGenerator references undefined evaluateFunctions() method
+
+
+
+3. Bugs & Incomplete Features
+Critical Bugs:
+
+Circular Reference: EnhancedDataGenerationService extends DataGenerationService but is missing proper constructor
+Missing Imports: Several services missing required import statements
+Interface Mismatch: Generator implementations using 2-parameter generate() while interface expects 3
+Incomplete JSON Parsing: Enhanced field options parsing will fail due to nested class issues
+Schema Formatting: conditionalRules initialized incorrectly with List<>() syntax
+
+Incomplete Features:
+
+Formatting Pipeline: Core formatting classes empty, breaking the entire formatting system
+Dependency Resolution: DependentFieldGenerator incomplete
+Type-specific Formatting: Referenced but not implemented
+API Endpoint: Preview endpoint doesn't use enhanced generation with formatting
+Frontend: Advanced options modal saves to currentFieldOptions but this isn't properly sent to backend
+
+Data Flow Issues:
+
+Options Format Mismatch: Frontend sends enhanced options as JSON string, but many generators expect simple string options
+Preview vs Generate: Preview uses basic generation, but generate endpoint should use enhanced
+Schema Formatting Rules: Frontend sends as JSON string, needs proper parsing in backend
+
+The application has a solid foundation but needs these critical components completed before it can function properly. The enhanced formatting and dependency systems are partially implemented but not wired together.
+////////////////////////////////////////////////////////////////////////////////////////////////
+Priority Checklist
+Critical Path to Minimal Functionality:
+
+Fix DataTypeGenerator interface method conflict
+Update all generator implementations to use consistent method signature
+Fix SchemaFormattingRules constructor syntax error
+Fix ApiController to properly use DataGenerationService
+
+--- CHECKPOINT: App functions minimally (basic generation without formatting) ---
+
+Complete empty enum classes (CaseTransform, PaddingPosition, TruncatePosition)
+Complete PaddingConfig and ValidationRule classes
+Fix EnhancedDataGenerationService constructor and wiring
+Complete SchemaFormattingService missing methods
+Wire EnhancedDataGenerationService into ApiController
+Fix DependentFieldGenerator implementation
+Complete remaining formatting features
+////////////////////////////////////////////////////////////////////////////////////////////////
