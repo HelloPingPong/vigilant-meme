@@ -1,0 +1,12 @@
+package com.jpmorgan.reactdemo.dto;
+
+import com.jpmorgan.reactdemo.formatting.FieldFormattingOptions;
+import lombok.Data;
+
+@Data
+public class EnhancedFieldOptions {
+    private String baseType;           // Original generator type
+    private Object baseOptions;        // Original options (can be String or complex object)
+    private FieldFormattingOptions formatting;
+    private DependencyConfig dependency;
+}
