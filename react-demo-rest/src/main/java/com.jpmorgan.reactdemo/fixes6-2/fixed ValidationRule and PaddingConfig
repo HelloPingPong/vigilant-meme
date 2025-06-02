@@ -1,0 +1,25 @@
+// ValidationRule.java
+package com.jpmorgan.reactdemo.dto;
+
+import lombok.Data;
+import java.util.List;
+
+@Data
+public class ValidationRule {
+    private Integer minLength;
+    private Integer maxLength;
+    private String pattern; // Regex pattern for validation
+    private List<String> customRules; // e.g., "not_empty", "no_spaces", "alphanumeric"
+}
+
+// PaddingConfig.java
+package com.jpmorgan.reactdemo.formatting;
+
+import com.jpmorgan.reactdemo.formatting.enums.PaddingPosition;
+import lombok.Data;
+
+@Data
+public class PaddingConfig {
+    private Character character = ' '; // Default padding character
+    private PaddingPosition position = PaddingPosition.RIGHT; // Default position
+}
