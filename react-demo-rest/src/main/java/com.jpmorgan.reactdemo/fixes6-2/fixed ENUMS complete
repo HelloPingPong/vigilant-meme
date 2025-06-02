@@ -1,0 +1,28 @@
+// CaseTransform.java
+package com.jpmorgan.reactdemo.formatting.enums;
+
+public enum CaseTransform {
+    UPPER,
+    LOWER,
+    TITLE,
+    CAMEL,
+    PASCAL,
+    SNAKE,
+    KEBAB
+}
+
+// PaddingPosition.java
+package com.jpmorgan.reactdemo.formatting.enums;
+
+public enum PaddingPosition {
+    LEFT,
+    RIGHT
+}
+
+// TruncatePosition.java
+package com.jpmorgan.reactdemo.formatting.enums;
+
+public enum TruncatePosition {
+    START,
+    END
+}
