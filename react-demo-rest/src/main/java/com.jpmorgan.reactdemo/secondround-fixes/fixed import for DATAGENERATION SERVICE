@@ -1,0 +1,9 @@
+// Add this import to DataGenerationService.java at the top:
+import lombok.extern.slf4j.Slf4j;
+
+// And add the @Slf4j annotation to the class:
+@Service
+@Slf4j
+public class DataGenerationService {
+    // ... rest of the class
+}
