@@ -1,0 +1,13 @@
+package com.jpmorgan.reactdemo.config;
+
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Configuration for formatting-related beans and settings.
+ * Currently placeholder for future formatting configurations.
+ */
+@Configuration
+public class FormattingConfiguration {
+    // Future formatting configurations can be added here
+    // e.g., default formatting rules, custom formatters, etc.
+}
