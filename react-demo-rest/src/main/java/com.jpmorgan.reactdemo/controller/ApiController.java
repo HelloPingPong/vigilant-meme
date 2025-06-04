@@ -2,32 +2,37 @@ package com.jpmorgan.reactdemo.controller;
 
 import com.jpmorgan.reactdemo.dto.*;
 import com.jpmorgan.reactdemo.service.DataGenerationService;
+import com.jpmorgan.reactdemo.service.EnhancedDataGenerationService;
 import com.jpmorgan.reactdemo.service.SchemaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping; // Import for DELETE
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api") // Base path for all API endpoints
-@RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow requests from frontend (adjust in production)
+@RequestMapping("/api")
+@CrossOrigin(origins = "*")
 public class ApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ApiController.class);
-    private final DataGenerationService dataGenerationService;
+    private final DataGenerationService dataGenerationService; // This will be the enhanced service
     private final SchemaService schemaService;
+
+    @Autowired
+    public ApiController(@Qualifier("enhancedDataGenerationService") DataGenerationService dataGenerationService, SchemaService schemaService) {
+        this.dataGenerationService = dataGenerationService;
+        this.schemaService = schemaService;
+    }
 
     @GetMapping("/datatypes")
     public ResponseEntity<List<DataTypeInfo>> getDataTypes() {
@@ -38,14 +43,19 @@ public class ApiController {
     public ResponseEntity<String> generateData(@RequestBody GenerationRequest request) {
         try {
             log.info("Received generation request: {} rows, format {}", request.getRowCount(), request.getFormat());
+
+            // Validation
             if (request.getSchema() == null || request.getSchema().isEmpty()) {
                 return ResponseEntity.badRequest().body("Schema cannot be empty.");
             }
-            if (request.getRowCount() <= 0 || request.getRowCount() > 100000) { // Add sensible limits
+            if (request.getRowCount() <= 0 || request.getRowCount() > 100000) {
                 return ResponseEntity.badRequest().body("Row count must be between 1 and 100,000.");
             }
 
+            // Generate data using enhanced service
             String generatedData = dataGenerationService.generateData(request);
+
+            // Setup response headers
             HttpHeaders headers = new HttpHeaders();
             String filename = "generated_data." + request.getFormat().toLowerCase();
             MediaType mediaType;
@@ -69,11 +79,11 @@ public class ApiController {
                     filename = "generated_data.txt";
                     break;
                 default:
-                    mediaType = MediaType.TEXT_PLAIN; // Fallback
+                    mediaType = MediaType.TEXT_PLAIN;
             }
 
             headers.setContentType(mediaType);
-            headers.setContentDispositionFormData("attachment", filename); // Suggest download
+            headers.setContentDispositionFormData("attachment", filename);
 
             log.info("Successfully generated {} bytes in {} format", generatedData.length(), request.getFormat());
             return new ResponseEntity<>(generatedData, headers, HttpStatus.OK);
@@ -88,25 +98,47 @@ public class ApiController {
         }
     }
 
-    // Endpoint to generate preview data (avoids sending large vdata for preview)
     @PostMapping("/generate/preview")
     public ResponseEntity<List<Map<String, Object>>> generatePreviewData(@RequestBody GenerationRequest request) {
         try {
-            log.info("Received preview generation request: format {}", request.getFormat());
+            log.info("Received preview generation request");
+
             if (request.getSchema() == null || request.getSchema().isEmpty()) {
-                return ResponseEntity.badRequest().build(); // No body needed for bad request
+                return ResponseEntity.badRequest().build();
             }
-            int previewRowCount = Math.min(Math.max(1, request.getRowCount()), 10); // Generate max 10 rows for preview
-            List<Map<String, Object>> previewData = dataGenerationService.generateRawData(request.getSchema(), previewRowCount);
+
+            // Limit preview to 10 rows
+            int previewRowCount = Math.min(Math.max(1, request.getRowCount()), 10);
+
+            // Create a new request with limited rows for preview
+            GenerationRequest previewRequest = new GenerationRequest();
+            previewRequest.setSchema(request.getSchema());
+            previewRequest.setRowCount(previewRowCount);
+            previewRequest.setSchemaFormattingRules(request.getSchemaFormattingRules());
+
+            // Generate preview data with enhanced service
+            List<Map<String, Object>> previewData;
+            if (dataGenerationService instanceof EnhancedDataGenerationService) {
+                EnhancedDataGenerationService enhancedService = (EnhancedDataGenerationService) dataGenerationService;
+                // Use the enhanced raw data generation that includes formatting
+                previewData = enhancedService.generateRawDataWithSchemaRules(
+                        request.getSchema(),
+                        previewRowCount,
+                        request.getSchemaFormattingRules()
+                );
+            } else {
+                // Fallback to basic generation
+                previewData = dataGenerationService.generateRawData(request.getSchema(), previewRowCount);
+            }
+
             log.info("Successfully generated {} preview rows", previewData.size());
             return ResponseEntity.ok(previewData);
+
         } catch (Exception e) {
             log.error("Error generating preview data", e);
-            // Don't expose internal errors directly in preview response
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error generating preview", e);
         }
     }
-
 
     @PostMapping("/schemas")
     public ResponseEntity<SchemaDefinitionDto> saveSchema(@RequestBody SchemaDefinitionDto schemaDto) {
@@ -120,20 +152,18 @@ public class ApiController {
         }
     }
 
-    // ADD: Endpoint to list all saved schemas (ID and Name) for dropdown
     @GetMapping("/schemas")
     public ResponseEntity<List<SchemaSummaryDto>> getAllSchemaSummaries() {
         List<SchemaSummaryDto> summaries = schemaService.getAllSchemaSummaries();
         return ResponseEntity.ok(summaries);
     }
 
-    // ADD: Endpoint to delete a schema
     @DeleteMapping("/schemas/{id}")
     public ResponseEntity<Void> deleteSchema(@PathVariable Long id) {
         try {
             schemaService.deleteSchema(id);
             log.info("Deleted schema with ID: {}", id);
-            return ResponseEntity.noContent().build(); // Standard HTTP 204 No Content on successful delete
+            return ResponseEntity.noContent().build();
         } catch (jakarta.persistence.EntityNotFoundException e) {
             log.warn("Attempted to delete non-existent schema with ID: {}", id);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Schema not found", e);
