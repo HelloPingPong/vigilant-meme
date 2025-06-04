@@ -1,13 +1,14 @@
 package com.jpmorgan.reactdemo.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jpmorgan.reactdemo.dto.FieldDefinitionDto;
 import com.jpmorgan.reactdemo.dto.SchemaDefinitionDto;
+import com.jpmorgan.reactdemo.dto.SchemaSummaryDto;
+import com.jpmorgan.reactdemo.formatting.schema.SchemaFormattingRules;
 import com.jpmorgan.reactdemo.model.FieldDefinition;
 import com.jpmorgan.reactdemo.model.SchemaDefinition;
 import com.jpmorgan.reactdemo.repository.SchemaDefinitionRepository;
-import com.jpmorgan.reactdemo.dto.SchemaSummaryDto;
-import java.util.List;
-import java.util.stream.Collectors;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -15,6 +16,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -22,14 +26,25 @@ import java.util.stream.IntStream;
 public class SchemaService {
 
     private final SchemaDefinitionRepository schemaRepository;
+    private final ObjectMapper objectMapper;
     private static final Logger log = LoggerFactory.getLogger(SchemaService.class);
 
-    @Transactional // Ensure atomicity
+    @Transactional
     public SchemaDefinitionDto saveSchema(SchemaDefinitionDto schemaDto) {
         SchemaDefinition schema = new SchemaDefinition();
         schema.setName(schemaDto.getName());
 
-        // Use IntStream to set the order correctly
+        // Convert formatting rules to JSON string
+        if (schemaDto.getFormattingRules() != null) {
+            try {
+                String rulesJson = objectMapper.writeValueAsString(schemaDto.getFormattingRules());
+                schema.setSchemaFormattingRules(rulesJson);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to serialize formatting rules: {}", e.getMessage());
+            }
+        }
+
+        // Create fields with order
         List<FieldDefinition> fields = IntStream.range(0, schemaDto.getFields().size())
                 .mapToObj(i -> {
                     FieldDefinitionDto fieldDto = schemaDto.getFields().get(i);
@@ -37,14 +52,12 @@ public class SchemaService {
                     field.setName(fieldDto.getName());
                     field.setDataType(fieldDto.getDataType());
                     field.setOptions(fieldDto.getOptions());
-                    field.setFieldOrder(i); // Set the order
-                    // The relationship is managed by SchemaDefinition.addField
-                    // field.setSchemaDefinition(schema); // Set manually before save if not using cascade helper
+                    field.setFieldOrder(i);
                     return field;
                 })
                 .collect(Collectors.toList());
 
-        // Add fields using the helper method to ensure bidirectional link is set
+        // Add fields using the helper method
         fields.forEach(schema::addField);
 
         SchemaDefinition savedSchema = schemaRepository.save(schema);
@@ -62,11 +75,26 @@ public class SchemaService {
         SchemaDefinitionDto dto = new SchemaDefinitionDto();
         dto.setId(schema.getId());
         dto.setName(schema.getName());
+
+        // Convert fields
         dto.setFields(schema.getFields().stream()
-                // .sorted(Comparator.comparingInt(FieldDefinition::getFieldOrder)) // Ensure order if not using @OrderBy
                 .map(this::convertFieldToDto)
                 .collect(Collectors.toList()));
-        dto.setShareLink(generateShareLink(schema.getId())); // Generate share link
+
+        // Parse formatting rules from JSON
+        if (schema.getSchemaFormattingRules() != null && !schema.getSchemaFormattingRules().trim().isEmpty()) {
+            try {
+                SchemaFormattingRules rules = objectMapper.readValue(
+                        schema.getSchemaFormattingRules(),
+                        SchemaFormattingRules.class
+                );
+                dto.setFormattingRules(rules);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to parse formatting rules for schema {}: {}", schema.getId(), e.getMessage());
+            }
+        }
+
+        dto.setShareLink(generateShareLink(schema.getId()));
         return dto;
     }
 
@@ -75,15 +103,12 @@ public class SchemaService {
         dto.setName(field.getName());
         dto.setDataType(field.getDataType());
         dto.setOptions(field.getOptions());
-        //might need id if UI needs to update specific fields later
         return dto;
     }
 
     private String generateShareLink(Long schemaId) {
-        // Generates a link relative to the current request's base URL
-        // Assumes the API is mounted at the root or a known context path
         return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/schemas/{id}") // Matches GET endpoint
+                .path("/api/schemas/{id}")
                 .buildAndExpand(schemaId)
                 .toUriString();
     }
@@ -106,5 +131,3 @@ public class SchemaService {
         log.info("Successfully deleted schema with id: {}", id);
     }
 }
-
-
