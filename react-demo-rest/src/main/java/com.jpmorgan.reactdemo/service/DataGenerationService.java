@@ -1,5 +1,6 @@
 package com.jpmorgan.reactdemo.service;
 
+
 import com.jpmorgan.reactdemo.dto.*;
 import com.jpmorgan.reactdemo.formatting.FieldFormatter;
 import com.jpmorgan.reactdemo.generator.DataTypeGenerator;
@@ -39,9 +40,9 @@ public class DataGenerationService {
         this.xmlMapper = xmlMapper;
     }
 
-    private final Faker faker = new Faker(); // Create one instance
+    final Faker faker = new Faker(); // Create one instance
 
-    private Map<String, DataTypeGenerator> generatorMap;
+    Map<String, DataTypeGenerator> generatorMap;
 
     // Methods to handle JSON, CSV, and XML separately
     public String handleJson(Object data) throws JsonProcessingException {
