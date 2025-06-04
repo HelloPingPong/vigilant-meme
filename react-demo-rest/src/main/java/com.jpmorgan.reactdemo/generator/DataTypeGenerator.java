@@ -1,8 +1,9 @@
 package com.jpmorgan.reactdemo.generator;
 
 import com.github.javafaker.Faker;
-import java.util.Collections;
 import java.util.Map;
+
+//TODO: Create currency gen module in impl folder to test format settings and utilize new enhanced gen service
 
 public interface DataTypeGenerator {
     /**
@@ -20,21 +21,24 @@ public interface DataTypeGenerator {
      * Category for grouping (e.g., "Name", "Address").
      */
     String getCategory();
+
     /**
      * Generates a fake data value.
      * @param faker The Faker instance.
      * @param options Optional configuration for the generator (e.g., date format, regex pattern).
+     * @param rowContext Current row context for dependent fields
      * @return The generated fake data as a String.
      */
-    String generate(Faker faker, String options, Map<String, Object> rowContext);
-
-    // Backward compatibility
-    default String generate(Faker faker, String options) {
-        return generate(faker, options, Collections.emptyMap());
+    default String generate(Faker faker, String options, Map<String, Object> rowContext) {
+        // Default implementation ignores rowContext for backward compatibility
+        return generate(faker, options);
     }
 
-
-    // New methods for formatting support
-    default boolean supportsFormatting() { return false; }
-    default String applyFormatting(String value, String formatOptions) { return value; }
+    /**
+     * Generates a fake data value (simplified version).
+     * @param faker The Faker instance.
+     * @param options Optional configuration for the generator.
+     * @return The generated fake data as a String.
+     */
+    String generate(Faker faker, String options);
 }
