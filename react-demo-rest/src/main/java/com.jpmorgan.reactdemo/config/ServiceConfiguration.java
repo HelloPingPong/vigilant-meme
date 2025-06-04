@@ -1,0 +1,43 @@
+package com.jpmorgan.reactdemo.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.jpmorgan.reactdemo.expression.DependencyResolver;
+import com.jpmorgan.reactdemo.expression.ExpressionEvaluator;
+import com.jpmorgan.reactdemo.formatting.FieldFormatter;
+import com.jpmorgan.reactdemo.generator.DataTypeGenerator;
+import com.jpmorgan.reactdemo.service.EnhancedDataGenerationService;
+import com.jpmorgan.reactdemo.service.SchemaFormattingService;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+
+import java.util.List;
+
+@Configuration
+public class ServiceConfiguration {
+
+    @Bean
+    @Primary
+    public EnhancedDataGenerationService dataGenerationService(
+            List<DataTypeGenerator> generators,
+            ObjectMapper objectMapper,
+            CsvMapper csvMapper,
+            XmlMapper xmlMapper,
+            SchemaFormattingService schemaFormattingService,
+            FieldFormatter fieldFormatter,
+            DependencyResolver dependencyResolver,
+            ExpressionEvaluator expressionEvaluator) {
+        return new EnhancedDataGenerationService(
+                generators,
+                objectMapper,
+                csvMapper,
+                xmlMapper,
+                schemaFormattingService,
+                fieldFormatter,
+                dependencyResolver,
+                expressionEvaluator
+        );
+    }
+}
